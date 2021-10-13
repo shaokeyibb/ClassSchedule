@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context.CLIPBOARD_SERVICE
+import android.content.Intent
 import android.os.Bundle
 import android.util.JsonReader
 import android.widget.Toast
@@ -13,9 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
@@ -45,6 +44,8 @@ val currentWeekInThisSemester =
     mutableStateOf(getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt())
 val maxWeekInThisSemester =
     mutableStateOf(getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt())
+val shouldShowNonThisWeekClass =
+    mutableStateOf(getPreferenceByKey("generic.shouldShowNonThisWeekClass").value.toBooleanStrict())
 
 class SettingsActivity : ComponentActivity() {
 
@@ -52,7 +53,6 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             ClassScheduleTheme {
-                // A surface container using the 'background' color from the theme
                 Surface(color = MaterialTheme.colors.background) {
                     SettingsMain(activity = this)
                 }
@@ -78,9 +78,10 @@ fun SettingsMain(activity: ComponentActivity) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(120.dp)
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_setMaxClassNumber))
                 NumberPicker(
@@ -95,23 +96,60 @@ fun SettingsMain(activity: ComponentActivity) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(70.dp),
+                    .height(70.dp)
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_setEnableWeekend))
                 Switch(checked = maxWeek.value == 7, onCheckedChange = {
-                    if (it) maxWeek.value = 7 else maxWeek.value = 5;
+                    if (it) maxWeek.value = 7 else maxWeek.value = 5
                     updatePreference("generic.maxWeek", maxWeek.value.toString())
                 })
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(horizontal = 25.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "设置是否显示非本周课程")
+                Switch(checked = shouldShowNonThisWeekClass.value, onCheckedChange = {
+                    shouldShowNonThisWeekClass.value = it
+                    updatePreference(
+                        "generic.shouldShowNonThisWeekClass",
+                        shouldShowNonThisWeekClass.value.toString()
+                    )
+                })
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .clickable {
+                        activity.startActivity(
+                            Intent(
+                                activity,
+                                ClassTimeSettingsActivity::class.java
+                            )
+                        )
+                    }.padding(horizontal = 25.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "课表时间设置")
+                Icon(imageVector = Icons.Default.Settings, contentDescription = "课表时间设置")
             }
             Divider()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(120.dp)
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_setCurrentWeekInThisSemester))
                 NumberPicker(
@@ -127,9 +165,10 @@ fun SettingsMain(activity: ComponentActivity) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(120.dp)
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_setMaxWeekInThisSemester))
                 NumberPicker(
@@ -168,13 +207,14 @@ fun SettingsMain(activity: ComponentActivity) {
                                 Toast.LENGTH_SHORT
                             )
                             .show()
-                    },
+                    }
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(text = stringResource(id = R.string.settings_exportDataToClipboard))
                 Icon(
-                    imageVector = Icons.Default.Send,
+                    imageVector = Icons.Default.Share,
                     contentDescription = stringResource(id = R.string.settings_exportDataToClipboard)
                 )
             }
@@ -193,7 +233,7 @@ fun SettingsMain(activity: ComponentActivity) {
                             for (jsonElement in array) {
                                 classList.add(gson.fromJson(jsonElement, ClassEntity::class.java))
                             }
-                        } catch (e: JsonSyntaxException) {
+                        } catch (e: Exception) {
                             Toast
                                 .makeText(
                                     activity,
@@ -223,9 +263,10 @@ fun SettingsMain(activity: ComponentActivity) {
                                 Toast.LENGTH_SHORT
                             )
                             .show()
-                    },
+                    }
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_importDataFromClipboard))
                 Icon(
@@ -264,9 +305,9 @@ fun SettingsMain(activity: ComponentActivity) {
                                 Toast.LENGTH_SHORT
                             )
                             .show()
-                    },
+                    }.padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceAround
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(text = stringResource(id = R.string.settings_resetAllData))
                 Icon(

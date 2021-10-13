@@ -1,5 +1,6 @@
 package io.hikarilan.classschedule.data
 
+import androidx.compose.ui.graphics.Color
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 
@@ -12,20 +13,19 @@ data class ClassEntity(
     @ColumnInfo(name = "location") var location: String,
     @ColumnInfo(name = "teacher") var teacher: String,
     @ColumnInfo(name = "availableWeeks") var availableWeeks: String,
+    @ColumnInfo(name = "color") var color: Long
 ) {
     companion object {
         fun fillEntities(
             origin: List<ClassEntity>,
             maxWeek: Int,
-            maxClassNumber: Int
+            currentClassNumber: Int
         ): List<ClassEntity> {
             val list = mutableListOf<ClassEntity>()
-            for (classNumber in 1..maxClassNumber) {
-                for (week in 1..maxWeek) {
-                    origin.find { it.week == week && it.classNumber == classNumber }.let {
-                        if (it != null) list.add(it)
-                        else list.add(ClassEntity(week, classNumber, "", "", "", ""))
-                    }
+            for (week in 1..maxWeek) {
+                origin.find { it.week == week && it.classNumber == currentClassNumber }.let {
+                    if (it != null) list.add(it)
+                    else list.add(ClassEntity(week, currentClassNumber, "", "", "", "", 0x00FFFFFFF))
                 }
             }
             return list

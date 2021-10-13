@@ -2,8 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.hikarilan.classschedule">
 
-    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -28,6 +26,16 @@
             android:theme="@style/Theme.ClassSchedule.NoActionBar">
             <intent-filter>
                 <action android:name="io.hikarilan.classschedule.SETTINGS" />
+                <category android:name="android.intent.category.PREFERENCE" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ClassTimeSettingsActivity"
+            android:exported="true"
+            android:label="@string/settings"
+            android:theme="@style/Theme.ClassSchedule.NoActionBar">
+            <intent-filter>
+                <action android:name="io.hikarilan.classschedule.CLASSTIMESETTINGS" />
                 <category android:name="android.intent.category.PREFERENCE" />
             </intent-filter>
         </activity>

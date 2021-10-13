@@ -12,7 +12,7 @@ interface ClassDao {
     fun findByWeekAndClassNumber(week: Int, classNumber: Int): ClassEntity?
 
     @Update
-    fun updateUsers(vararg classes: ClassEntity)
+    fun updateClasses(vararg classes: ClassEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(vararg classes: ClassEntity)

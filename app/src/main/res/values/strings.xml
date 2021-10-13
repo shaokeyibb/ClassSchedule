@@ -28,4 +28,5 @@
     <string name="toast.successfulllyImport">Successfully Import</string>
     <string name="toast.successfulllyExport">Successfully Export</string>
     <string name="toast.failedToImport">Failed To Import Data,Please Check the currection of your JSON in your Clipboard!</string>
+    <string name="classTimeSettings">Class Time Settings</string>
 </resources>

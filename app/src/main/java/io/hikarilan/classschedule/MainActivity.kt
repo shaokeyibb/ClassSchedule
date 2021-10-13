@@ -4,14 +4,10 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.GridCells
-import androidx.compose.foundation.lazy.LazyVerticalGrid
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -19,12 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.ExperimentalUnitApi
-import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.TextUnitType
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
 import io.hikarilan.classschedule.data.ClassEntity
 import io.hikarilan.classschedule.data.Database
@@ -37,6 +33,9 @@ val classList = mutableStateListOf<ClassEntity>()
 val currentWeekInThisSemesterShowed = mutableStateOf(currentWeekInThisSemester.value)
 
 val dialogEditingClass: MutableState<ClassEntity?> = mutableStateOf(null)
+
+val menuClass: MutableState<ClassEntity?> = mutableStateOf(null)
+val copiedClass: MutableState<ClassEntity?> = mutableStateOf(null)
 
 class MainActivity : ComponentActivity() {
 
@@ -75,6 +74,23 @@ class MainActivity : ComponentActivity() {
             if (it == null) Database.getAppDatabase().preferenceDao()
                 .insertAll(PreferenceEntity("generic.maxWeekInThisSemester", "16"))
         }
+        Database.getAppDatabase().preferenceDao().findByKey("generic.shouldShowNonThisWeekClass")
+            .let {
+                if (it == null) Database.getAppDatabase().preferenceDao()
+                    .insertAll(PreferenceEntity("generic.shouldShowNonThisWeekClass", "false"))
+            }
+        maxClassNumber.value = getPreferenceByKey("generic.maxClassNumber").value.toInt()
+        maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
+        currentWeekInThisSemester.value =
+            getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt()
+        currentWeekInThisSemesterShowed.value = currentWeekInThisSemester.value
+        maxWeekInThisSemester.value =
+            getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt()
+        shouldShowNonThisWeekClass.value =
+            getPreferenceByKey("generic.shouldShowNonThisWeekClass").value.toBooleanStrict()
+        classList.clear()
+        classList.addAll(Database.getAppDatabase().classDao().getAll())
+        dialogEditingClass.value = null
     }
 }
 
@@ -96,6 +112,11 @@ fun reInit() {
         if (it == null) Database.getAppDatabase().preferenceDao()
             .insertAll(PreferenceEntity("generic.maxWeekInThisSemester", "16"))
     }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.shouldShowNonThisWeekClass")
+        .let {
+            if (it == null) Database.getAppDatabase().preferenceDao()
+                .insertAll(PreferenceEntity("generic.shouldShowNonThisWeekClass", "true"))
+        }
     maxClassNumber.value = getPreferenceByKey("generic.maxClassNumber").value.toInt()
     maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
     currentWeekInThisSemester.value =
@@ -103,6 +124,8 @@ fun reInit() {
     currentWeekInThisSemesterShowed.value = currentWeekInThisSemester.value
     maxWeekInThisSemester.value =
         getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt()
+    shouldShowNonThisWeekClass.value =
+        getPreferenceByKey("generic.shouldShowNonThisWeekClass").value.toBooleanStrict()
     classList.clear()
     classList.addAll(Database.getAppDatabase().classDao().getAll())
     dialogEditingClass.value = null
@@ -114,6 +137,7 @@ fun reInit() {
 @Composable
 fun Main(activity: ComponentActivity) {
     ShowClassEditDialog()
+    ShowMenu()
     Scaffold(topBar = {
         TopAppBar(title = {
             Text(
@@ -156,65 +180,188 @@ fun Main(activity: ComponentActivity) {
 @ExperimentalFoundationApi
 @Composable
 fun ShowSchedule(currentWeek: Int) {
+    LazyColumn {
+        item {
+            Row {
+                Box(
+                    modifier = Modifier.size(
+                        width = LocalConfiguration.current.screenWidthDp.dp * 0.07f,
+                        height = LocalConfiguration.current.screenHeightDp.dp * 0.025f
+                    )
+                )
+                for (index in 1..maxWeek.value) {
+                    ShowWeek(week = index)
+                }
+            }
+        }
+        items(maxClassNumber.value) { index ->
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ShowTime(classNumber = index + 1)
+                ClassEntity.fillEntities(
+                    classList,
+                    maxWeek.value,
+                    index + 1
+                ).map {
+                    when {
+                        it.availableWeeks == "" -> return@map it
+                        currentWeek.toString() !in it.availableWeeks.split(',') -> {
+                            return@map if (shouldShowNonThisWeekClass.value) {
+                                it.copy(
+                                    color = 0x25000000
+                                )
+                            } else {
+                                it.copy(
+                                    className = "",
+                                    teacher = "",
+                                    location = "",
+                                    color = 0x00FFFFFFF,
+                                )
+                            }
+                        }
+                        else -> return@map it
+                    }
+                }.forEach {
+                    ShowClassCard(it)
+                }
+            }
+        }
+    }
+
+    /*
     LazyVerticalGrid(
-        cells = GridCells.Fixed(maxWeek.value),
+        cells = GridCells.Fixed(maxWeek.value + 1),
         contentPadding = PaddingValues(1.dp),
         modifier = Modifier.draggable(
             rememberDraggableState(onDelta = {
-                if (it < 5.0f && currentWeekInThisSemesterShowed.value > 1)
+                if (it > 5.0f && currentWeekInThisSemesterShowed.value > 1)
                     currentWeekInThisSemesterShowed.value--
-                else if (it > 5.0f && currentWeekInThisSemesterShowed.value < maxWeekInThisSemester.value)
+                else if (it < 5.0f && currentWeekInThisSemesterShowed.value < maxWeekInThisSemester.value)
                     currentWeekInThisSemesterShowed.value++
             }),
             orientation = Orientation.Horizontal
         )
     ) {
-        items(maxWeek.value) { index ->
-            ShowWeeks(week = index + 1)
+        items(maxWeek.value + 1) { index ->
+            ShowWeek(week = index)
         }
-        items(
-            items = ClassEntity.fillEntities(
-                classList,
-                maxWeek.value,
-                maxClassNumber.value
-            ).map {
-                if (currentWeek.toString() !in it.availableWeeks.split(',')) {
-                    return@map it.copy(className = "", teacher = "", location = "")
+        items(maxClassNumber.value) { index ->
+            ShowTime(classNumber = index + 1)
+            items(
+                items = ClassEntity.fillEntities(
+                    classList,
+                    maxWeek.value,
+                    maxClassNumber.value
+                ).map {
+                    if (currentWeek.toString() !in it.availableWeeks.split(',')) {
+                        return@map it.copy(className = "", teacher = "", location = "")
+                    }
+                    return@map it
                 }
-                return@map it
+            ) { item ->
+                ShowClassCard(item)
             }
-        ) { item ->
-            ShowClassCard(item)
         }
+    }
+    */
+
+
+}
+
+@ExperimentalUnitApi
+@Composable
+fun ShowTime(classNumber: Int) {
+    Column(
+        modifier = Modifier.width(LocalConfiguration.current.screenWidthDp.dp * 0.07f)
+    ) {
+        Text(
+            modifier = Modifier.fillMaxWidth(),
+            text = classNumber.toString(),
+            fontSize = TextUnit(5F, TextUnitType.Em),
+            textAlign = TextAlign.Center
+        )
+        Text(
+            modifier = Modifier.fillMaxWidth(),
+            text = "88:88",
+            fontSize = TextUnit(2F, TextUnitType.Em),
+            textAlign = TextAlign.Center
+        )
+        Text(
+            modifier = Modifier.fillMaxWidth(),
+            text = "88:88",
+            fontSize = TextUnit(2F, TextUnitType.Em),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
 @Composable
-fun ShowWeeks(week: Int) {
-    Box(contentAlignment = Alignment.Center) {
+fun ShowWeek(week: Int) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(
+            width = LocalConfiguration.current.screenWidthDp.dp * 0.93f / maxWeek.value,
+            height = LocalConfiguration.current.screenHeightDp.dp * 0.025f
+        )
+    ) {
         when (week) {
-            1 -> Text(text = stringResource(id = R.string.week_1))
-            2 -> Text(text = stringResource(id = R.string.week_2))
-            3 -> Text(text = stringResource(id = R.string.week_3))
-            4 -> Text(text = stringResource(id = R.string.week_4))
-            5 -> Text(text = stringResource(id = R.string.week_5))
-            6 -> Text(text = stringResource(id = R.string.week_6))
-            7 -> Text(text = stringResource(id = R.string.week_7))
+            1 -> Text(
+                text = stringResource(id = R.string.week_1),
+            )
+            2 -> Text(
+                text = stringResource(id = R.string.week_2),
+            )
+            3 -> Text(
+                text = stringResource(id = R.string.week_3),
+            )
+            4 -> Text(
+                text = stringResource(id = R.string.week_4),
+            )
+            5 -> Text(
+                text = stringResource(id = R.string.week_5),
+            )
+            6 -> Text(
+                text = stringResource(id = R.string.week_6),
+            )
+            7 -> Text(
+                text = stringResource(id = R.string.week_7),
+            )
         }
     }
 }
 
 
+@ExperimentalFoundationApi
 @ExperimentalUnitApi
 @ExperimentalMaterialApi
 @Composable
 fun ShowClassCard(item: ClassEntity) {
-    Card(
-        onClick = {
-            dialogEditingClass.value =
-                Database.getAppDatabase().classDao().getAll().find { it == item } ?: item
-        }, modifier = Modifier
-            .size(100.dp)
+    Surface(
+        modifier = Modifier
+            .size(
+                width = LocalConfiguration.current.screenWidthDp.dp * 0.93f / maxWeek.value,
+                height = 100.dp
+            )
+            .combinedClickable(
+                onClick = {
+                    dialogEditingClass.value = Database
+                        .getAppDatabase()
+                        .classDao()
+                        .getAll()
+                        .find { it == item }
+                        ?: item
+                },
+                onLongClick = {
+                    menuClass.value = Database
+                        .getAppDatabase()
+                        .classDao()
+                        .getAll()
+                        .find { it == item }
+                        ?: item
+                }
+            ), color = Color(item.color), border = BorderStroke(1.dp, Color(0x35000000))
     ) {
         Column(
             Modifier
@@ -240,6 +387,58 @@ fun ShowClassCard(item: ClassEntity) {
     }
 }
 
+@Composable
+fun ShowMenu() {
+    if (menuClass.value == null) return
+
+    DropdownMenu(
+        expanded = menuClass.value != null,
+        onDismissRequest = {
+            menuClass.value = null
+        }
+    ) {
+        DropdownMenuItem(
+            onClick = {
+                copiedClass.value = menuClass.value
+                menuClass.value = null
+            },
+            contentPadding = PaddingValues(20.dp),
+            enabled = menuClass.value?.className?.isNotBlank() == true
+
+        ) {
+            Icon(imageVector = Icons.Default.Info, contentDescription = "复制")
+            Text(text = "复制")
+        }
+        DropdownMenuItem(
+            onClick = {
+                val menu = menuClass.value!!
+                val copied = copiedClass.value!!
+                val changed = copied.copy(week = menu.week, classNumber = menu.classNumber)
+                classList.remove(menu)
+                classList.add(changed)
+                Database.getAppDatabase().classDao().insertAll(changed)
+                menuClass.value = null
+                copiedClass.value = null
+            }, contentPadding = PaddingValues(20.dp), enabled = copiedClass.value != null
+        ) {
+            Icon(imageVector = Icons.Default.Info, contentDescription = "粘贴")
+            Text(text = "粘贴")
+        }
+        DropdownMenuItem(
+            onClick = {
+                Database.getAppDatabase().classDao().delete(menuClass.value!!)
+                classList.remove(menuClass.value!!)
+                menuClass.value = null
+            },
+            contentPadding = PaddingValues(20.dp), enabled = menuClass.value
+                    in Database.getAppDatabase().classDao().getAll()
+        ) {
+            Icon(imageVector = Icons.Default.Info, contentDescription = "删除")
+            Text(text = "删除")
+        }
+    }
+}
+
 @ExperimentalFoundationApi
 @Composable
 fun ShowClassEditDialog() {
@@ -255,13 +454,14 @@ fun ShowClassEditDialog() {
                 dialogEditingClass.value!!.availableWeeks.split(',').map { it.toInt() })
         list
     }
+    val color = remember { mutableStateOf(Color(dialogEditingClass.value!!.color)) }
 
     Dialog(onDismissRequest = { dialogEditingClass.value = null }) {
         Surface(
             elevation = 8.dp,
             modifier = Modifier
                 .requiredWidth(LocalConfiguration.current.screenWidthDp.dp * 0.85f)
-                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.60f)
+                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.70f)
                 .padding(4.dp)
         ) {
             Scaffold(topBar = {
@@ -304,6 +504,7 @@ fun ShowClassEditDialog() {
                         },
                         enabled = className.value.isNotBlank()
                                 && availableClass.isNotEmpty()
+                                && color.value.toArgb() != 0x00FFFFFFF
                     ) {
                         Icon(
                             imageVector = Icons.Default.Done,
@@ -352,7 +553,8 @@ fun ShowClassEditDialog() {
                             dialogEditingClass.value!!.className = className.value
                         },
                         label = { Text(text = stringResource(id = R.string.dialogEditingClass_setClassName)) },
-                        isError = className.value.isBlank()
+                        isError = className.value.isBlank(),
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.size(10.dp))
                     Divider()
@@ -364,7 +566,8 @@ fun ShowClassEditDialog() {
                             teacher.value = str
                             dialogEditingClass.value!!.teacher = teacher.value
                         },
-                        label = { Text(text = stringResource(id = R.string.dialogEditingClass_setTeacher)) }
+                        label = { Text(text = stringResource(id = R.string.dialogEditingClass_setTeacher)) },
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.size(10.dp))
                     Divider()
@@ -376,7 +579,8 @@ fun ShowClassEditDialog() {
                             location.value = str
                             dialogEditingClass.value!!.location = location.value
                         },
-                        label = { Text(text = stringResource(id = R.string.dialogEditingClass_setLocation)) }
+                        label = { Text(text = stringResource(id = R.string.dialogEditingClass_setLocation)) },
+                        singleLine = true
                     )
                     Spacer(modifier = Modifier.size(10.dp))
                     Divider()
@@ -469,6 +673,43 @@ fun ShowClassEditDialog() {
                                 Text(text = index.toString())
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.size(10.dp))
+                    Divider()
+                    Column {
+                        Text(text = "背景色", modifier = Modifier.padding(5.dp))
+                        LazyVerticalGrid(
+                            cells = GridCells.Adaptive(40.dp),
+                            contentPadding = PaddingValues(horizontal = 5.dp)
+                        ) {
+                            items(
+                                listOf(
+                                    Color(0x3566CCFF),
+                                )
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(100),
+                                    border = BorderStroke(
+                                        2.dp,
+                                        if (color.value == it) Color(0x7F000000)
+                                        else Color(0xFFFFFFFF)
+                                    ),
+                                    color = it,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clickable {
+                                            color.value = it
+                                            dialogEditingClass.value!!.color =
+                                                color.value
+                                                    .toArgb()
+                                                    .toLong()
+                                        }
+                                ) {
+                                }
+                            }
+                        }
+
                     }
                 }
             }

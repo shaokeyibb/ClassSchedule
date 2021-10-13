@@ -25,8 +25,9 @@
     <string name="toast.successfullyClear">清除成功</string>
     <string name="settings.resetAllData">重置所有数据（包括课程表数据和偏好设置）</string>
     <string name="settings.importDataFromClipboard" translatable="false">从剪贴板导入课程表数据</string>
-    <string name="settings.exportDataToClipboard">导出课程表（JSON）数据</string>
+    <string name="settings.exportDataToClipboard">导出课程表（JSON）数据到剪贴板</string>
     <string name="toast.successfulllyImport">导入成功！</string>
     <string name="toast.successfulllyExport">导出成功！</string>
     <string name="toast.failedToImport">数据导入失败，请检查剪贴板中的 JSON 数据是否正确!</string>
+    <string name="classTimeSettings">课表时间设置</string>
 </resources>
