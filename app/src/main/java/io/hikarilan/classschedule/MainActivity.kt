@@ -1,6 +1,7 @@
 package io.hikarilan.classschedule
 
 import android.content.Intent
+import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,13 +21,15 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Dialog
-import io.hikarilan.classschedule.data.ClassEntity
-import io.hikarilan.classschedule.data.Database
-import io.hikarilan.classschedule.data.PreferenceEntity
-import io.hikarilan.classschedule.data.getPreferenceByKey
+import com.chargemap.compose.numberpicker.FullHours
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import io.hikarilan.classschedule.data.*
 import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
+import java.util.*
 
 val classList = mutableStateListOf<ClassEntity>()
 
@@ -57,9 +60,17 @@ class MainActivity : ComponentActivity() {
 
     private fun init() {
         Database.deploy(this)
-        Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumber").let {
+        Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberDay").let {
             if (it == null) Database.getAppDatabase().preferenceDao()
-                .insertAll(PreferenceEntity("generic.maxClassNumber", "8"))
+                .insertAll(PreferenceEntity("generic.maxClassNumberDay", "4"))
+        }
+        Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberAfternoon").let {
+            if (it == null) Database.getAppDatabase().preferenceDao()
+                .insertAll(PreferenceEntity("generic.maxClassNumberAfternoon", "4"))
+        }
+        Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberNight").let {
+            if (it == null) Database.getAppDatabase().preferenceDao()
+                .insertAll(PreferenceEntity("generic.maxClassNumberNight", "2"))
         }
         Database.getAppDatabase().preferenceDao().findByKey("generic.maxWeek").let {
             if (it == null) Database.getAppDatabase().preferenceDao()
@@ -79,7 +90,20 @@ class MainActivity : ComponentActivity() {
                 if (it == null) Database.getAppDatabase().preferenceDao()
                     .insertAll(PreferenceEntity("generic.shouldShowNonThisWeekClass", "false"))
             }
-        maxClassNumber.value = getPreferenceByKey("generic.maxClassNumber").value.toInt()
+        Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerClassMinutes")
+            .let {
+                if (it == null) Database.getAppDatabase().preferenceDao()
+                    .insertAll(PreferenceEntity("generic.defaultTimePerClassMinutes", "50"))
+            }
+        Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerRestMinutes")
+            .let {
+                if (it == null) Database.getAppDatabase().preferenceDao()
+                    .insertAll(PreferenceEntity("generic.defaultTimePerRestMinutes", "10"))
+            }
+        maxClassNumberDay.value = getPreferenceByKey("generic.maxClassNumberDay").value.toInt()
+        maxClassNumberAfternoon.value =
+            getPreferenceByKey("generic.maxClassNumberAfternoon").value.toInt()
+        maxClassNumberNight.value = getPreferenceByKey("generic.maxClassNumberNight").value.toInt()
         maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
         currentWeekInThisSemester.value =
             getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt()
@@ -91,13 +115,71 @@ class MainActivity : ComponentActivity() {
         classList.clear()
         classList.addAll(Database.getAppDatabase().classDao().getAll())
         dialogEditingClass.value = null
+        defaultTimePerClassMinutes.value =
+            getPreferenceByKey("generic.defaultTimePerClassMinutes").value.toInt()
+        defaultTimePerRestMinutes.value =
+            getPreferenceByKey("generic.defaultTimePerRestMinutes").value.toInt()
+
+        Database.getAppDatabase().preferenceDao().findByKey("generic.classTimes")
+            .let {
+                if (it == null) {
+                    classTimes.putAll(
+                        generateTimes(
+                            1,
+                            maxClassNumberDay.value,
+                            FullHours(8, 0)
+                        )
+                    )
+                    classTimes.putAll(
+                        generateTimes(
+                            maxClassNumberDay.value + 1,
+                            maxClassNumberDay.value + maxClassNumberAfternoon.value,
+                            FullHours(14, 0)
+                        )
+                    )
+                    classTimes.putAll(
+                        generateTimes(
+                            maxClassNumberDay.value + maxClassNumberAfternoon.value + 1,
+                            maxClassNumberDay.value + maxClassNumberAfternoon.value + maxClassNumberNight.value,
+                            FullHours(18, 0)
+                        )
+                    )
+                    Database.getAppDatabase().preferenceDao().insertAll(
+                        PreferenceEntity(
+                            "generic.classTimes",
+                            Gson().toJson(
+                                classTimes.toMap(),
+                                object :
+                                    TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                            )
+                        )
+                    )
+                } else {
+                    classTimes.clear()
+                    classTimes.putAll(
+                        Gson().fromJson(
+                            getPreferenceByKey("generic.classTimes").value,
+                            object : TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                        )
+                    )
+                }
+
+            }
     }
 }
 
 fun reInit() {
-    Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumber").let {
+    Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberDay").let {
         if (it == null) Database.getAppDatabase().preferenceDao()
-            .insertAll(PreferenceEntity("generic.maxClassNumber", "8"))
+            .insertAll(PreferenceEntity("generic.maxClassNumberDay", "4"))
+    }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberAfternoon").let {
+        if (it == null) Database.getAppDatabase().preferenceDao()
+            .insertAll(PreferenceEntity("generic.maxClassNumberAfternoon", "4"))
+    }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberNight").let {
+        if (it == null) Database.getAppDatabase().preferenceDao()
+            .insertAll(PreferenceEntity("generic.maxClassNumberNight", "2"))
     }
     Database.getAppDatabase().preferenceDao().findByKey("generic.maxWeek").let {
         if (it == null) Database.getAppDatabase().preferenceDao()
@@ -115,9 +197,21 @@ fun reInit() {
     Database.getAppDatabase().preferenceDao().findByKey("generic.shouldShowNonThisWeekClass")
         .let {
             if (it == null) Database.getAppDatabase().preferenceDao()
-                .insertAll(PreferenceEntity("generic.shouldShowNonThisWeekClass", "true"))
+                .insertAll(PreferenceEntity("generic.shouldShowNonThisWeekClass", "false"))
         }
-    maxClassNumber.value = getPreferenceByKey("generic.maxClassNumber").value.toInt()
+    Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerClassMinutes")
+        .let {
+            if (it == null) Database.getAppDatabase().preferenceDao()
+                .insertAll(PreferenceEntity("generic.defaultTimePerClassMinutes", "50"))
+        }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerRestMinutes").let {
+        if (it == null) Database.getAppDatabase().preferenceDao()
+            .insertAll(PreferenceEntity("generic.defaultTimePerRestMinutes", "10"))
+    }
+    maxClassNumberDay.value = getPreferenceByKey("generic.maxClassNumberDay").value.toInt()
+    maxClassNumberAfternoon.value =
+        getPreferenceByKey("generic.maxClassNumberAfternoon").value.toInt()
+    maxClassNumberNight.value = getPreferenceByKey("generic.maxClassNumberNight").value.toInt()
     maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
     currentWeekInThisSemester.value =
         getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt()
@@ -129,6 +223,55 @@ fun reInit() {
     classList.clear()
     classList.addAll(Database.getAppDatabase().classDao().getAll())
     dialogEditingClass.value = null
+    defaultTimePerClassMinutes.value =
+        getPreferenceByKey("generic.defaultTimePerClassMinutes").value.toInt()
+    defaultTimePerRestMinutes.value =
+        getPreferenceByKey("generic.defaultTimePerRestMinutes").value.toInt()
+
+    Database.getAppDatabase().preferenceDao().findByKey("generic.classTimes")
+        .let {
+            if (it == null) {
+                classTimes.putAll(
+                    generateTimes(
+                        1,
+                        maxClassNumberDay.value,
+                        FullHours(8, 0)
+                    )
+                )
+                classTimes.putAll(
+                    generateTimes(
+                        maxClassNumberDay.value + 1,
+                        maxClassNumberDay.value + maxClassNumberAfternoon.value,
+                        FullHours(14, 0)
+                    )
+                )
+                classTimes.putAll(
+                    generateTimes(
+                        maxClassNumberDay.value + maxClassNumberAfternoon.value + 1,
+                        maxClassNumberDay.value + maxClassNumberAfternoon.value + maxClassNumberNight.value,
+                        FullHours(18, 0)
+                    )
+                )
+                Database.getAppDatabase().preferenceDao().insertAll(
+                    PreferenceEntity(
+                        "generic.classTimes",
+                        Gson().toJson(
+                            classTimes.toMap(),
+                            object : TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                        )
+                    )
+                )
+            } else {
+                classTimes.clear()
+                classTimes.putAll(
+                    Gson().fromJson(
+                        getPreferenceByKey("generic.classTimes").value,
+                        object : TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                    )
+                )
+            }
+
+        }
 }
 
 @ExperimentalUnitApi
@@ -194,7 +337,88 @@ fun ShowSchedule(currentWeek: Int) {
                 }
             }
         }
-        items(maxClassNumber.value) { index ->
+        items(maxClassNumberDay.value) { index ->
+            val index = index
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ShowTime(classNumber = index + 1)
+                ClassEntity.fillEntities(
+                    classList,
+                    maxWeek.value,
+                    index + 1
+                ).map {
+                    when {
+                        it.availableWeeks == "" -> return@map it
+                        currentWeek.toString() !in it.availableWeeks.split(',') -> {
+                            return@map if (shouldShowNonThisWeekClass.value) {
+                                it.copy(
+                                    color = 0x25000000
+                                )
+                            } else {
+                                it.copy(
+                                    className = "",
+                                    teacher = "",
+                                    location = "",
+                                    color = 0x00FFFFFFF,
+                                )
+                            }
+                        }
+                        else -> return@map it
+                    }
+                }.forEach {
+                    ShowClassCard(it)
+                }
+            }
+        }
+        item {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.Gray) {
+                Text(text = "午休", textAlign = TextAlign.Center)
+            }
+        }
+        items(maxClassNumberAfternoon.value) { index ->
+            val index = index + maxClassNumberDay.value
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                ShowTime(classNumber = index + 1)
+                ClassEntity.fillEntities(
+                    classList,
+                    maxWeek.value,
+                    index + 1
+                ).map {
+                    when {
+                        it.availableWeeks == "" -> return@map it
+                        currentWeek.toString() !in it.availableWeeks.split(',') -> {
+                            return@map if (shouldShowNonThisWeekClass.value) {
+                                it.copy(
+                                    color = 0x25000000
+                                )
+                            } else {
+                                it.copy(
+                                    className = "",
+                                    teacher = "",
+                                    location = "",
+                                    color = 0x00FFFFFFF,
+                                )
+                            }
+                        }
+                        else -> return@map it
+                    }
+                }.forEach {
+                    ShowClassCard(it)
+                }
+            }
+        }
+        item {
+            Surface(modifier = Modifier.fillMaxWidth(), color = Color.Gray) {
+                Text(text = "晚休", textAlign = TextAlign.Center)
+            }
+        }
+        items(maxClassNumberNight.value) { index ->
+            val index = index + maxClassNumberDay.value + maxClassNumberAfternoon.value
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -284,13 +508,27 @@ fun ShowTime(classNumber: Int) {
         )
         Text(
             modifier = Modifier.fillMaxWidth(),
-            text = "88:88",
+            text = kotlin.run {
+                val time = classTimes[classNumber]!!.first
+                Calendar.getInstance().run {
+                    set(Calendar.HOUR_OF_DAY, time.hours)
+                    set(Calendar.MINUTE, time.minutes)
+                    SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                }
+            },
             fontSize = TextUnit(2F, TextUnitType.Em),
             textAlign = TextAlign.Center
         )
         Text(
             modifier = Modifier.fillMaxWidth(),
-            text = "88:88",
+            text = kotlin.run {
+                val time = classTimes[classNumber]!!.second
+                Calendar.getInstance().run {
+                    set(Calendar.HOUR_OF_DAY, time.hours)
+                    set(Calendar.MINUTE, time.minutes)
+                    SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                }
+            },
             fontSize = TextUnit(2F, TextUnitType.Em),
             textAlign = TextAlign.Center
         )
@@ -371,17 +609,22 @@ fun ShowClassCard(item: ClassEntity) {
             Text(
                 modifier = Modifier.fillMaxWidth(),
                 text = item.className,
-                fontSize = TextUnit(5F, TextUnitType.Em)
+                fontSize = TextUnit(5F, TextUnitType.Em),
+                maxLines = 1,
             )
             Text(
                 modifier = Modifier.fillMaxWidth(),
                 text = item.location,
-                fontSize = TextUnit(3F, TextUnitType.Em)
+                fontSize = TextUnit(3F, TextUnitType.Em),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 modifier = Modifier.fillMaxWidth(),
                 text = if (item.teacher.isNotBlank()) "@${item.teacher}" else item.teacher,
-                fontSize = TextUnit(3F, TextUnitType.Em)
+                fontSize = TextUnit(3F, TextUnitType.Em),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -461,7 +704,7 @@ fun ShowClassEditDialog() {
             elevation = 8.dp,
             modifier = Modifier
                 .requiredWidth(LocalConfiguration.current.screenWidthDp.dp * 0.85f)
-                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.70f)
+                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.90f)
                 .padding(4.dp)
         ) {
             Scaffold(topBar = {

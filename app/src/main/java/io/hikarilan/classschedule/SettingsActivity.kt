@@ -1,12 +1,10 @@
 package io.hikarilan.classschedule
 
 import android.content.ClipData
-import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context.CLIPBOARD_SERVICE
 import android.content.Intent
 import android.os.Bundle
-import android.util.JsonReader
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,23 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat.getSystemService
 import com.chargemap.compose.numberpicker.NumberPicker
 import com.google.gson.Gson
-import com.google.gson.JsonArray
 import com.google.gson.JsonParser
-import com.google.gson.JsonSyntaxException
 import com.google.gson.reflect.TypeToken
-import io.hikarilan.classschedule.data.ClassEntity
-import io.hikarilan.classschedule.data.Database
-import io.hikarilan.classschedule.data.getPreferenceByKey
-import io.hikarilan.classschedule.data.updatePreference
+import io.hikarilan.classschedule.data.*
 import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
-import java.lang.IllegalStateException
-import com.google.gson.JsonElement
 
 
-val maxClassNumber = mutableStateOf(getPreferenceByKey("generic.maxClassNumber").value.toInt())
 val maxWeek = mutableStateOf(getPreferenceByKey("generic.maxWeek").value.toInt())
 
 val currentWeekInThisSemester =
@@ -75,24 +64,6 @@ fun SettingsMain(activity: ComponentActivity) {
         })
     }) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .padding(horizontal = 25.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = stringResource(id = R.string.settings_setMaxClassNumber))
-                NumberPicker(
-                    value = maxClassNumber.value,
-                    onValueChange = {
-                        maxClassNumber.value = it
-                        updatePreference("generic.maxClassNumber", it.toString())
-                    },
-                    range = 1..30
-                )
-            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -135,7 +106,8 @@ fun SettingsMain(activity: ComponentActivity) {
                                 ClassTimeSettingsActivity::class.java
                             )
                         )
-                    }.padding(horizontal = 25.dp),
+                    }
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -194,8 +166,14 @@ fun SettingsMain(activity: ComponentActivity) {
                             ClipData.newPlainText(
                                 "ClassScheduler_ExportJSON", Gson()
                                     .toJson(
-                                        classList.toList(),
-                                        object : TypeToken<List<ClassEntity>>() {}.type
+                                        TransformData(
+                                            classList.toList(),
+                                            Database
+                                                .getAppDatabase()
+                                                .preferenceDao()
+                                                .getAll()
+                                        ),
+                                        object : TypeToken<TransformData>() {}.type
                                     )
                                     .toString()
                             )
@@ -227,12 +205,26 @@ fun SettingsMain(activity: ComponentActivity) {
                             activity.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                         try {
                             val gson = Gson()
-                            val array: JsonArray =
-                                JsonParser.parseString(clipboardManager.primaryClip?.getItemAt(0)?.text.toString()).asJsonArray
-                            classList.clear()
-                            for (jsonElement in array) {
-                                classList.add(gson.fromJson(jsonElement, ClassEntity::class.java))
-                            }
+                            val transformData =
+                                JsonParser.parseString(clipboardManager.primaryClip?.getItemAt(0)?.text.toString()).asJsonObject
+                            val mappedPart1 =
+                                transformData
+                                    .getAsJsonArray("part1")
+                                    .map { gson.fromJson(it, ClassEntity::class.java) }
+                            val mappedPart2 =
+                                transformData
+                                    .getAsJsonArray("part2")
+                                    .map { gson.fromJson(it, PreferenceEntity::class.java) }
+                            Database
+                                .getAppDatabase()
+                                .let {
+                                    it
+                                        .classDao()
+                                        .insertAll(*mappedPart1.toTypedArray())
+                                    it
+                                        .preferenceDao()
+                                        .insertAll(*mappedPart2.toTypedArray())
+                                }
                         } catch (e: Exception) {
                             Toast
                                 .makeText(
@@ -243,17 +235,6 @@ fun SettingsMain(activity: ComponentActivity) {
                                 .show()
                             return@clickable
                         }
-                        Database
-                            .getAppDatabase()
-                            .classDao()
-                            .let {
-                                it
-                                    .getAll()
-                                    .forEach { dao -> it.delete(dao) }
-                                classList.forEach { entity ->
-                                    it.insertAll(entity)
-                                }
-                            }
                         reInit()
                         activity.finish()
                         Toast
@@ -305,7 +286,8 @@ fun SettingsMain(activity: ComponentActivity) {
                                 Toast.LENGTH_SHORT
                             )
                             .show()
-                    }.padding(horizontal = 25.dp),
+                    }
+                    .padding(horizontal = 25.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
