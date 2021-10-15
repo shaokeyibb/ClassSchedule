@@ -39,6 +39,16 @@
                 <category android:name="android.intent.category.PREFERENCE" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".InfoActivity"
+            android:exported="true"
+            android:label="@string/settings"
+            android:theme="@style/Theme.ClassSchedule.NoActionBar">
+            <intent-filter>
+                <action android:name="io.hikarilan.classschedule.INFO" />
+                <category android:name="android.intent.category.PREFERENCE" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>

@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -357,6 +358,21 @@ fun SettingsMain(activity: ComponentActivity) {
                     imageVector = Icons.Default.Refresh,
                     contentDescription = stringResource(id = R.string.settings_resetAllData)
                 )
+            }
+            Divider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(horizontal = 25.dp)
+                    .clickable {
+                        activity.startActivity(Intent(activity, InfoActivity::class.java))
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "关于本软件")
             }
         }
     }

@@ -642,18 +642,18 @@ fun ShowClassCard(item: ClassEntity) {
                 modifier = Modifier.fillMaxWidth(),
                 text = item.className,
                 fontSize = TextUnit(5F, TextUnitType.Em),
-                maxLines = 1,
+                maxLines = 2,
             )
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = item.location,
+                text = if (item.location.isNotBlank()) "@${item.location}" else item.location,
                 fontSize = TextUnit(3F, TextUnitType.Em),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 modifier = Modifier.fillMaxWidth(),
-                text = if (item.teacher.isNotBlank()) "@${item.teacher}" else item.teacher,
+                text = item.teacher,
                 fontSize = TextUnit(3F, TextUnitType.Em),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -735,8 +735,8 @@ fun ShowClassEditDialog() {
         Surface(
             elevation = 8.dp,
             modifier = Modifier
-                .requiredWidth(LocalConfiguration.current.screenWidthDp.dp * 0.85f)
-                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.90f)
+                .requiredWidth(LocalConfiguration.current.screenWidthDp.dp * 0.90f)
+                .requiredHeight(LocalConfiguration.current.screenHeightDp.dp * 0.85f)
                 .padding(4.dp)
         ) {
             Scaffold(topBar = {
