@@ -1,10 +1,12 @@
 package io.hikarilan.classschedule
 
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context.CLIPBOARD_SERVICE
 import android.content.Intent
+import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import android.widget.TimePicker
 import android.widget.Toast
@@ -26,15 +28,18 @@ import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import io.hikarilan.classschedule.data.*
+import io.hikarilan.classschedule.data.DateEntity.Companion.toCalender
+import io.hikarilan.classschedule.data.DateEntity.Companion.toDateEntity
 import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
+import java.util.*
+import kotlin.properties.Delegates
 
 
 val maxWeek = mutableStateOf(getPreferenceByKey("generic.maxWeek").value.toInt())
 
-//val commencementTime
+val commencementTime = mutableStateOf(DateEntity(1970, 1, 1))
 
-val currentWeekInThisSemester =
-    mutableStateOf(getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt())
+val currentWeekInThisSemester = mutableStateOf(getCurrentWeek())
 val maxWeekInThisSemester =
     mutableStateOf(getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt())
 val shouldShowNonThisWeekClass =
@@ -54,8 +59,17 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
+fun getCurrentWeek(time: DateEntity = commencementTime.value): Int {
+    return Calendar.getInstance().apply { this.time = Date() }
+        .get(Calendar.WEEK_OF_YEAR) - time.toCalender().get(Calendar.WEEK_OF_YEAR) + 1
+}
+
 @Composable
 fun SettingsMain(activity: ComponentActivity) {
+
+    currentWeekInThisSemester.value = getCurrentWeek(commencementTime.value)
+    currentWeekInThisSemesterShowed.value = getCurrentWeek(commencementTime.value)
+
     Scaffold(topBar = {
         TopAppBar(title = {
             Text(text = stringResource(id = R.string.settings))
@@ -68,6 +82,44 @@ fun SettingsMain(activity: ComponentActivity) {
         })
     }) {
         Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp)
+                    .padding(horizontal = 25.dp)
+                    .clickable {
+                        DatePickerDialog(
+                            activity,
+                            { _, year, month, dayOfMonth ->
+                                commencementTime.value =
+                                    commencementTime.value.copy(
+                                        year = year,
+                                        month = month + 1,
+                                        dayOfMonth = dayOfMonth
+                                    )
+                                updatePreference(
+                                    "generic.commencementTime", Gson().toJson(
+                                        DateEntity(year, month + 1, dayOfMonth),
+                                        DateEntity::class.java
+                                    )
+                                )
+                            },
+                            commencementTime.value.year,
+                            commencementTime.value.month - 1,
+                            commencementTime.value.dayOfMonth
+                        ).show()
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "设置开学时间")
+                Text(
+                    text = SimpleDateFormat(
+                        "yyyy-MM-dd",
+                        Locale.US
+                    ).format(commencementTime.value.toCalender().time)
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,9 +183,14 @@ fun SettingsMain(activity: ComponentActivity) {
                 NumberPicker(
                     value = currentWeekInThisSemester.value,
                     onValueChange = {
+                        commencementTime.value = commencementTime.value.toCalender().also { cal ->
+                            cal.set(
+                                Calendar.WEEK_OF_YEAR,
+                                cal.get(Calendar.WEEK_OF_YEAR) + it - currentWeekInThisSemester.value
+                            )
+                        }.toDateEntity()
                         currentWeekInThisSemester.value = it
                         currentWeekInThisSemesterShowed.value = it
-                        updatePreference("generic.currentWeekInThisSemester", it.toString())
                     },
                     range = 1..maxWeekInThisSemester.value
                 )

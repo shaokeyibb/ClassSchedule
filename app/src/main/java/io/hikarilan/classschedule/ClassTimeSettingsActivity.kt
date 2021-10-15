@@ -225,7 +225,7 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "一般单节课时常")
+                Text(text = "一般单节课时长")
                 NumberPicker(
                     value = defaultTimePerClassMinutes.value,
                     onValueChange = {
@@ -262,7 +262,7 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "一般课间休息时常")
+                Text(text = "一般课间休息时长")
                 NumberPicker(
                     value = defaultTimePerRestMinutes.value,
                     onValueChange = {

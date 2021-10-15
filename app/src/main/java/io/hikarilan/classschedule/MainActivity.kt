@@ -28,6 +28,7 @@ import com.chargemap.compose.numberpicker.FullHours
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import io.hikarilan.classschedule.data.*
+import io.hikarilan.classschedule.data.DateEntity.Companion.toDateEntity
 import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
 import java.util.*
 
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
 
     private fun init() {
         Database.deploy(this)
+
         Database.getAppDatabase().preferenceDao().findByKey("generic.maxClassNumberDay").let {
             if (it == null) Database.getAppDatabase().preferenceDao()
                 .insertAll(PreferenceEntity("generic.maxClassNumberDay", "4"))
@@ -76,11 +78,6 @@ class MainActivity : ComponentActivity() {
             if (it == null) Database.getAppDatabase().preferenceDao()
                 .insertAll(PreferenceEntity("generic.maxWeek", "5"))
         }
-        Database.getAppDatabase().preferenceDao().findByKey("generic.currentWeekInThisSemester")
-            .let {
-                if (it == null) Database.getAppDatabase().preferenceDao()
-                    .insertAll(PreferenceEntity("generic.currentWeekInThisSemester", "1"))
-            }
         Database.getAppDatabase().preferenceDao().findByKey("generic.maxWeekInThisSemester").let {
             if (it == null) Database.getAppDatabase().preferenceDao()
                 .insertAll(PreferenceEntity("generic.maxWeekInThisSemester", "16"))
@@ -100,13 +97,32 @@ class MainActivity : ComponentActivity() {
                 if (it == null) Database.getAppDatabase().preferenceDao()
                     .insertAll(PreferenceEntity("generic.defaultTimePerRestMinutes", "10"))
             }
+        Database.getAppDatabase().preferenceDao().findByKey("generic.commencementTime")
+            .let {
+                if (it == null) {
+                    Database.getAppDatabase().preferenceDao()
+                        .insertAll(
+                            PreferenceEntity(
+                                "generic.commencementTime", Gson().toJson(
+                                    Calendar.getInstance().apply {
+                                        time = Date()
+                                    }.toDateEntity(),
+                                    DateEntity::class.java
+                                )
+                            )
+                        )
+                }
+            }
+        commencementTime.value = Gson().fromJson(
+            getPreferenceByKey("generic.commencementTime").value,
+            DateEntity::class.java
+        )
         maxClassNumberDay.value = getPreferenceByKey("generic.maxClassNumberDay").value.toInt()
         maxClassNumberAfternoon.value =
             getPreferenceByKey("generic.maxClassNumberAfternoon").value.toInt()
         maxClassNumberNight.value = getPreferenceByKey("generic.maxClassNumberNight").value.toInt()
         maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
-        currentWeekInThisSemester.value =
-            getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt()
+        currentWeekInThisSemester.value = getCurrentWeek(commencementTime.value)
         currentWeekInThisSemesterShowed.value = currentWeekInThisSemester.value
         maxWeekInThisSemester.value =
             getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt()
@@ -185,11 +201,6 @@ fun reInit() {
         if (it == null) Database.getAppDatabase().preferenceDao()
             .insertAll(PreferenceEntity("generic.maxWeek", "5"))
     }
-    Database.getAppDatabase().preferenceDao().findByKey("generic.currentWeekInThisSemester")
-        .let {
-            if (it == null) Database.getAppDatabase().preferenceDao()
-                .insertAll(PreferenceEntity("generic.currentWeekInThisSemester", "1"))
-        }
     Database.getAppDatabase().preferenceDao().findByKey("generic.maxWeekInThisSemester").let {
         if (it == null) Database.getAppDatabase().preferenceDao()
             .insertAll(PreferenceEntity("generic.maxWeekInThisSemester", "16"))
@@ -204,17 +215,37 @@ fun reInit() {
             if (it == null) Database.getAppDatabase().preferenceDao()
                 .insertAll(PreferenceEntity("generic.defaultTimePerClassMinutes", "50"))
         }
-    Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerRestMinutes").let {
-        if (it == null) Database.getAppDatabase().preferenceDao()
-            .insertAll(PreferenceEntity("generic.defaultTimePerRestMinutes", "10"))
-    }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.defaultTimePerRestMinutes")
+        .let {
+            if (it == null) Database.getAppDatabase().preferenceDao()
+                .insertAll(PreferenceEntity("generic.defaultTimePerRestMinutes", "10"))
+        }
+    Database.getAppDatabase().preferenceDao().findByKey("generic.commencementTime")
+        .let {
+            if (it == null) {
+                Database.getAppDatabase().preferenceDao()
+                    .insertAll(
+                        PreferenceEntity(
+                            "generic.commencementTime", Gson().toJson(
+                                Calendar.getInstance().apply {
+                                    time = Date()
+                                }.toDateEntity(),
+                                DateEntity::class.java
+                            )
+                        )
+                    )
+            }
+        }
+    commencementTime.value = Gson().fromJson(
+        getPreferenceByKey("generic.commencementTime").value,
+        DateEntity::class.java
+    )
     maxClassNumberDay.value = getPreferenceByKey("generic.maxClassNumberDay").value.toInt()
     maxClassNumberAfternoon.value =
         getPreferenceByKey("generic.maxClassNumberAfternoon").value.toInt()
     maxClassNumberNight.value = getPreferenceByKey("generic.maxClassNumberNight").value.toInt()
     maxWeek.value = getPreferenceByKey("generic.maxWeek").value.toInt()
-    currentWeekInThisSemester.value =
-        getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt()
+    currentWeekInThisSemester.value = getCurrentWeek(commencementTime.value)
     currentWeekInThisSemesterShowed.value = currentWeekInThisSemester.value
     maxWeekInThisSemester.value =
         getPreferenceByKey("generic.maxWeekInThisSemester").value.toInt()
@@ -257,7 +288,8 @@ fun reInit() {
                         "generic.classTimes",
                         Gson().toJson(
                             classTimes.toMap(),
-                            object : TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                            object :
+                                TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
                         )
                     )
                 )
