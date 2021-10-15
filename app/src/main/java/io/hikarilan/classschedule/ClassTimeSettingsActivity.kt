@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -216,7 +217,8 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                             )
                         )
                     },
-                    range = 5..120 step 5
+                    // do not create step,bug detected
+                    range = 5..120
                 )
             }
             Row(
@@ -252,7 +254,8 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                             )
                         )
                     },
-                    range = 5..120 step 5
+                    // do not create step,bug detected
+                    range = 5..120
                 )
             }
             Divider()
@@ -311,7 +314,89 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
             Divider()
             Text(text = "课程时间设置", modifier = Modifier.padding(10.dp))
             LazyColumn {
-                items(maxClassNumberDay.value + maxClassNumberAfternoon.value + maxClassNumberNight.value) { index ->
+                items(maxClassNumberDay.value) { index ->
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 25.dp)
+                            .fillMaxWidth()
+                            .height(70.dp)
+                            .clickable { dialogEditingClassNumber.value = index + 1 },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "第 ${index + 1} 节")
+
+                        Text(
+                            text = "${
+                                kotlin.run {
+                                    val time = classTimes[index + 1]!!.first
+                                    Calendar.getInstance().run {
+                                        set(Calendar.HOUR_OF_DAY, time.hours)
+                                        set(Calendar.MINUTE, time.minutes)
+                                        SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                                    }
+                                }
+                            } - ${
+                                kotlin.run {
+                                    val time = classTimes[index + 1]!!.second
+                                    Calendar.getInstance().run {
+                                        set(Calendar.HOUR_OF_DAY, time.hours)
+                                        set(Calendar.MINUTE, time.minutes)
+                                        SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                                    }
+                                }
+                            }"
+                        )
+                    }
+                }
+                item {
+                    Divider()
+                }
+                items(maxClassNumberAfternoon.value) { index ->
+
+                    val index = maxClassNumberDay.value + index
+
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 25.dp)
+                            .fillMaxWidth()
+                            .height(70.dp)
+                            .clickable { dialogEditingClassNumber.value = index + 1 },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "第 ${index + 1} 节")
+
+                        Text(
+                            text = "${
+                                kotlin.run {
+                                    val time = classTimes[index + 1]!!.first
+                                    Calendar.getInstance().run {
+                                        set(Calendar.HOUR_OF_DAY, time.hours)
+                                        set(Calendar.MINUTE, time.minutes)
+                                        SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                                    }
+                                }
+                            } - ${
+                                kotlin.run {
+                                    val time = classTimes[index + 1]!!.second
+                                    Calendar.getInstance().run {
+                                        set(Calendar.HOUR_OF_DAY, time.hours)
+                                        set(Calendar.MINUTE, time.minutes)
+                                        SimpleDateFormat("HH:mm", Locale.US).format(getTime())
+                                    }
+                                }
+                            }"
+                        )
+                    }
+                }
+                item {
+                    Divider()
+                }
+                items(maxClassNumberNight.value) { index ->
+
+                    val index = maxClassNumberDay.value + maxClassNumberAfternoon.value + index
+
                     Row(
                         modifier = Modifier
                             .padding(horizontal = 25.dp)
