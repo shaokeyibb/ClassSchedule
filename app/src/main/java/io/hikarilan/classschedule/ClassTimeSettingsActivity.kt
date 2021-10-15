@@ -1,5 +1,6 @@
 package io.hikarilan.classschedule
 
+import android.app.TimePickerDialog
 import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -31,8 +32,6 @@ import io.hikarilan.classschedule.data.getPreferenceByKey
 import io.hikarilan.classschedule.data.updatePreference
 import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
 import java.util.*
-
-val dialogEditingClassNumber = mutableStateOf(0)
 
 val maxClassNumberDay =
     mutableStateOf(getPreferenceByKey("generic.maxClassNumberDay").value.toInt())
@@ -88,12 +87,47 @@ fun generateTimes(
     return map
 }
 
-@Composable
-fun ShowEditingClassNumberDialog() {
-    if (dialogEditingClassNumber.value == 0) return
+fun showEditingClassNumberDialog(index: Int, activity: ComponentActivity) {
 
-    val index = dialogEditingClassNumber.value - 1
+    val to = TimePickerDialog(activity, { _, hourOfDay, minute ->
+        classTimes[index + 1] =
+            classTimes[index + 1]!!.copy(second = FullHours(hourOfDay, minute))
 
+        Database.getAppDatabase().preferenceDao().insertAll(
+            PreferenceEntity(
+                "generic.classTimes",
+                Gson().toJson(
+                    classTimes.toMap(),
+                    object :
+                        TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                ).toString()
+            )
+        )
+
+    }, classTimes[index + 1]!!.first.hours, classTimes[index + 1]!!.first.minutes, true)
+
+    val from = TimePickerDialog(activity, { _, hourOfDay, minute ->
+        classTimes[index + 1] =
+            classTimes[index + 1]!!.copy(first = FullHours(hourOfDay, minute))
+
+        Database.getAppDatabase().preferenceDao().insertAll(
+            PreferenceEntity(
+                "generic.classTimes",
+                Gson().toJson(
+                    classTimes.toMap(),
+                    object :
+                        TypeToken<HashMap<Int, Pair<FullHours, FullHours>>>() {}.type
+                ).toString()
+            )
+        )
+
+        to.show()
+
+    }, classTimes[index + 1]!!.first.hours, classTimes[index + 1]!!.first.minutes, true)
+
+    from.show()
+
+    /*
     Dialog(onDismissRequest = { dialogEditingClassNumber.value = 0 }) {
         Surface(
             elevation = 8.dp,
@@ -163,14 +197,13 @@ fun ShowEditingClassNumberDialog() {
                     }
                 )
             }
-
         }
     }
+     */
 }
 
 @Composable
 fun ClassTimeSettingsMain(activity: ComponentActivity) {
-    ShowEditingClassNumberDialog()
 
     Scaffold(topBar = {
         TopAppBar(title = {
@@ -320,7 +353,7 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                             .padding(horizontal = 25.dp)
                             .fillMaxWidth()
                             .height(70.dp)
-                            .clickable { dialogEditingClassNumber.value = index + 1 },
+                            .clickable { showEditingClassNumberDialog(index,activity) },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -361,7 +394,7 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                             .padding(horizontal = 25.dp)
                             .fillMaxWidth()
                             .height(70.dp)
-                            .clickable { dialogEditingClassNumber.value = index + 1 },
+                            .clickable { showEditingClassNumberDialog(index,activity) },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -402,7 +435,7 @@ fun ClassTimeSettingsMain(activity: ComponentActivity) {
                             .padding(horizontal = 25.dp)
                             .fillMaxWidth()
                             .height(70.dp)
-                            .clickable { dialogEditingClassNumber.value = index + 1 },
+                            .clickable { showEditingClassNumberDialog(index,activity) },
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {

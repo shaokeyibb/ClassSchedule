@@ -1,10 +1,12 @@
 package io.hikarilan.classschedule
 
+import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context.CLIPBOARD_SERVICE
 import android.content.Intent
 import android.os.Bundle
+import android.widget.TimePicker
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,6 +30,8 @@ import io.hikarilan.classschedule.ui.theme.ClassScheduleTheme
 
 
 val maxWeek = mutableStateOf(getPreferenceByKey("generic.maxWeek").value.toInt())
+
+//val commencementTime
 
 val currentWeekInThisSemester =
     mutableStateOf(getPreferenceByKey("generic.currentWeekInThisSemester").value.toInt())
